@@ -1,10 +1,7 @@
-# cmpe272-hw1-ansible
-
-# CMPE 272 - HW1 Ansible
+# CMPE 272 - HW1 Ansible (Enterprise Software Plateforms)
 ## Ansible Web Server Deployment
 
-This project was developed for **CMPE 272 - Enterprise Software Platforms**.
-The objective of this assignment is to use **Ansible** to deploy and un-deploy web server resources on two Ubuntu virtual machines.
+Used **Ansible** to deploy and un-deploy web server resources on two Ubuntu virtual machines.
 Ansible is used to configure both virtual machines, install Nginx, configure the web server to use port **8080**, and deploy a unique web page to each VM.
 
 ---
