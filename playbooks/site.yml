@@ -1,1 +1,199 @@
+# ============================================================
+# SJSU-X Ansible Web Server Assignment
+# ============================================================
+#
+# VM1:
+#   Hello World from SJSU-1
+#
+# VM2:
+#   Hello World from SJSU-2
+#
+# Web Server:
+#   Nginx
+#
+# Port:
+#   8080
+#
+# Deploy:
+#   ansible-playbook site.yml --tags deploy -i inventory.ini --ask-pass --ask-become-pass
+#
+# Un-deploy:
+#   ansible-playbook site.yml --tags undeploy -i inventory.ini --ask-pass --ask-become-pass
+# ============================================================
 
+# ============================================================
+# DEPLOY
+# ============================================================
+- name: Deploy SJSU web servers
+  hosts: webservers
+  become: true
+  tags:
+    - deploy
+
+  tasks:
+
+    # --------------------------------------------------------
+    # Install Nginx
+    # --------------------------------------------------------
+    - name: Update Ubuntu package cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install Nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: present
+
+    # --------------------------------------------------------
+    # Create Nginx configuration
+    # --------------------------------------------------------
+    - name: Configure Nginx for port 8080
+      ansible.builtin.copy:
+        dest: /etc/nginx/sites-available/sjsu
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          server {
+              listen 8080;
+              listen [::]:8080;
+
+              root /var/www/html;
+              index index.html;
+
+              server_name _;
+
+              location / {
+                  try_files $uri $uri/ =404;
+              }
+          }
+
+    # --------------------------------------------------------
+    # Remove Ubuntu's default Nginx configuration
+    # --------------------------------------------------------
+    - name: Remove default Nginx site
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/default
+        state: absent
+
+    # --------------------------------------------------------
+    # Enable our SJSU configuration
+    # --------------------------------------------------------
+    - name: Enable SJSU Nginx site
+      ansible.builtin.file:
+        src: /etc/nginx/sites-available/sjsu
+        dest: /etc/nginx/sites-enabled/sjsu
+        state: link
+
+    # --------------------------------------------------------
+    # Create VM1 web page
+    # --------------------------------------------------------
+    - name: Create VM1 web page
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="UTF-8">
+              <title>SJSU VM1</title>
+          </head>
+          <body>
+              <h1>Hello World from SJSU-1</h1>
+          </body>
+          </html>
+      when: inventory_hostname == "vm1"
+
+    # --------------------------------------------------------
+    # Create VM2 web page
+    # --------------------------------------------------------
+    - name: Create VM2 web page
+      ansible.builtin.copy:
+        dest: /var/www/html/index.html
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <meta charset="UTF-8">
+              <title>SJSU VM2</title>
+          </head>
+          <body>
+              <h1>Hello World from SJSU-2</h1>
+          </body>
+          </html>
+      when: inventory_hostname == "vm2"
+
+    # --------------------------------------------------------
+    # Test Nginx configuration
+    # --------------------------------------------------------
+    - name: Test Nginx configuration
+      ansible.builtin.command:
+        cmd: nginx -t
+      changed_when: false
+
+    # --------------------------------------------------------
+    # Start Nginx
+    # --------------------------------------------------------
+    - name: Enable and restart Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        enabled: true
+        state: restarted
+
+# ============================================================
+# UN-DEPLOY
+# ============================================================
+- name: Un-deploy SJSU web servers
+  hosts: webservers
+  become: true
+  tags:
+    - undeploy
+
+  tasks:
+
+    # --------------------------------------------------------
+    # Stop Nginx
+    # --------------------------------------------------------
+    - name: Stop Nginx
+      ansible.builtin.systemd:
+        name: nginx
+        state: stopped
+      ignore_errors: true
+
+    # --------------------------------------------------------
+    # Remove Nginx
+    # --------------------------------------------------------
+    - name: Remove Nginx
+      ansible.builtin.apt:
+        name: nginx
+        state: absent
+        purge: true
+        autoremove: true
+
+    # --------------------------------------------------------
+    # Remove website
+    # --------------------------------------------------------
+    - name: Remove SJSU web page
+      ansible.builtin.file:
+        path: /var/www/html/index.html
+        state: absent
+
+    # --------------------------------------------------------
+    # Remove custom Nginx configuration
+    # --------------------------------------------------------
+    - name: Remove SJSU Nginx configuration
+      ansible.builtin.file:
+        path: /etc/nginx/sites-available/sjsu
+        state: absent
+
+    - name: Remove enabled SJSU Nginx configuration
+      ansible.builtin.file:
+        path: /etc/nginx/sites-enabled/sjsu
+        state: absent
